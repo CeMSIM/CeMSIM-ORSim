@@ -30,6 +30,7 @@ public class PatientEvents : MonoBehaviour
 
     public event Action PatientPneumothorax;
     public event Action NeedleDecompression;
+    public event Action NeedleInserted;
 
     public void TriggerPatientPneumothorax()
     {
@@ -44,6 +45,14 @@ public class PatientEvents : MonoBehaviour
         if (NeedleDecompression != null)
         {
             NeedleDecompression();
+        }
+    }
+
+    public void TriggerNeedleInserted()
+    {
+        if (NeedleInserted != null)
+        {
+            NeedleInserted();
         }
     }
 }

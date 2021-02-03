@@ -5,8 +5,15 @@ using UnityEngine.XR.Interaction.Toolkit;
 
 public class NeedleBehavior : MonoBehaviour
 {
+    public bool freezeRotation=false;
+    public Transform needleTip;
+
     XRGrabInteractable _xrInteractable;
     Rigidbody _rb;
+
+    //Constants from XRGrabInteractable
+    const float k_VelocityPredictionFactor = 0.6f;
+    const float k_AngularVelocityDamping = 0.95f;
 
     // Start is called before the first frame update
     void Start()
@@ -18,7 +25,7 @@ public class NeedleBehavior : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        
+
     }
 
     public void NeedleInserted(bool isInserted)
@@ -26,12 +33,24 @@ public class NeedleBehavior : MonoBehaviour
         if(isInserted)
         {
             _xrInteractable.gravityOnDetach = false;
-            //_rb.constraints = RigidbodyConstraints.FreezeRotationY | RigidbodyConstraints.FreezeRotationZ;
+            FreezeRotationUpdate(true);
         }
         else
         {
             _xrInteractable.gravityOnDetach = true;
-            //_rb.constraints = RigidbodyConstraints.None;
+            FreezeRotationUpdate(false);
         }
+    }
+
+    private void FreezeRotationUpdate(bool _freeze)
+    {
+        //Stop rotation control from XR interactable object
+        _xrInteractable.trackRotation = !_freeze;
+        _xrInteractable.trackPosition = !_freeze;
+
+        //Freeze Rotation
+        _rb.freezeRotation = _freeze;
+
+       
     }
 }

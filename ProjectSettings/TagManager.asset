@@ -19,10 +19,10 @@ TagManager:
   - Grab
   - Body
   - Grab Ignore Ray
-  - 
-  - 
-  - 
-  - 
+  - NeedleBoundary
+  - Skin
+  - Tool
+  - InternalTool
   - 
   - 
   - 
