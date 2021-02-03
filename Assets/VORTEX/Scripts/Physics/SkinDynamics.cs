@@ -48,7 +48,8 @@ public class SkinDynamics : MonoBehaviour
         var sign = 1;
         if (Vector3.Dot(tipProjected, needleDirection) < 0)
             sign = -1;
-        Debug.Log(tipProjected);
+
+        //Debug.Log(tipProjected);
         if(tipProjected.magnitude*sign < -tipTolerance)
         {
             Destroy(needleEntry);
@@ -64,7 +65,7 @@ public class SkinDynamics : MonoBehaviour
         var _object = collision.gameObject;
         if (_object.tag == "Tool")
         {
-            Debug.Log("Tool collide");
+            //Debug.Log("Tool collide");
 
             //The tool is a needle
             if (_object.GetComponent<NeedleBehavior>() && !needleInserted)
@@ -101,7 +102,7 @@ public class SkinDynamics : MonoBehaviour
             if (!inSpace)
             {
                 inSpace = true;
-                Debug.Log("Tool entered");
+                //Debug.Log("Tool entered");
 
                 var colliderLoc = other.transform.position;
 
@@ -117,7 +118,7 @@ public class SkinDynamics : MonoBehaviour
             if (inSpace)
             {
                 inSpace = false;
-                Debug.Log("Tool exited");
+                //Debug.Log("Tool exited");
             }
         }
     }
