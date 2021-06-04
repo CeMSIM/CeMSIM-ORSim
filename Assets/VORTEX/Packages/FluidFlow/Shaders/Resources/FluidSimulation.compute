@@ -1,0 +1,473 @@
+﻿// init
+#pragma kernel loadTexelMap INTEGER_RT_SUPPORT
+#pragma kernel loadTexelMap
+// gravity
+#pragma kernel updateGravityVectors
+#pragma kernel updateGravityMapNormal INTEGER_RT_SUPPORT
+#pragma kernel updateGravityMapNormal 
+#pragma kernel updateGravityMap INTEGER_RT_SUPPORT
+#pragma kernel updateGravityMap
+// simulation
+#pragma kernel updateFluid INTEGER_RT_SUPPORT
+#pragma kernel updateFluid
+#pragma kernel evaporateFluid INTEGER_RT_SUPPORT
+#pragma kernel evaporateFluid
+#pragma kernel calculateDrip INTEGER_RT_SUPPORT
+#pragma kernel calculateDrip
+// brushes
+#pragma kernel sphereBrush INTEGER_RT_SUPPORT
+#pragma kernel sphereBrush
+#pragma kernel textureBrush INTEGER_RT_SUPPORT
+#pragma kernel textureBrush
+#pragma kernel discBrush INTEGER_RT_SUPPORT
+#pragma kernel discBrush
+// reset
+#pragma kernel resetFluid INTEGER_RT_SUPPORT
+#pragma kernel resetFluid
+
+static const float DAMPEN = 0.99f;
+static const float HALFINV = (1.0f / 0xFFFF);
+static const float QUATERINV = (1.0f / 0xFF);
+static const float PI = 3.141592653589f;
+static const float MaxFloat = 3.402823e38f;
+static const float PI_INV = 1.0f / PI;
+static const float TWO_PI_INV = 1.0f / (2 * PI);
+
+static const int GROUPSIZE_DRIP = 16;
+static const int MULTI = 1000;
+static const float MULTI_inv = 1.0f / 1000.0f;
+
+struct TrianglePacked {
+	uint v0xy;   // xy of first vertex
+	uint v1xy;   // xy of second vertex
+	uint v2xy;   // xy of third vertex
+	uint v01z;   // z of first&second vertex
+	uint v2zN;   // z of third vertex
+	uint uv0;    // xy of first uv
+	uint uv1;    // xy of second uv
+	uint uv2;    // xy of third uv
+};
+// compressed triangle information input buffer
+StructuredBuffer<TrianglePacked> triangleData;
+
+// compressed texel information input buffer
+StructuredBuffer<uint2> texelInput;
+
+// surface normal map input texture
+Texture2D<float4> normalTex;
+
+// tangents data buffer
+StructuredBuffer<float4> tangents;
+
+// gravity direction in uv space per triangle
+RWStructuredBuffer<float4> gravityVectors;
+
+// fluid drop buffer for readback to cpu
+AppendStructuredBuffer<uint2> drops;
+
+// boundingbox size of the fluid object
+StructuredBuffer<float4> bounds;
+
+// texel information
+RWTexture2D<uint4> texelTexW;		// (posX|posY, posZ|normal, uvX|uvY, trisID|insideTriangle)
+Texture2D<uint4> texelTexR;
+RWStructuredBuffer<uint4> texelBuf;	// used when uint rendertextures are not supported (mobile)
+
+// fluid information
+RWTexture2D<uint4> fluidTexW;
+Texture2D<uint4> fluidTexR;
+RWStructuredBuffer<uint4> fluidBuf;	// used when uint rendertextures are not supported (mobile)
+
+// flow texture
+RWTexture2D<float> flowW;
+Texture2D<float> flowR;
+
+// resulting fluid 'mask'
+RWTexture2D<float4> finalTex;
+
+// texture brush stencil texture
+Texture2D<float4> brushTex;
+
+SamplerState _LinearClamp;
+
+// simulation
+uint textureSize;
+float textureSizeInverse;		// 1/TextureSize
+float roughness;				// fluid held in one texel
+float3 gravity;				    // local gravity direction
+uint triangleCountUnpadded;		// triangle count of the mesh
+float speed;					// <=> fluid sampling distance
+float normalAmount;				// influence of the provided normalmap on the amount of fluid in each texel
+float slopeAmount;				// influence of the surface slope on the amount of fluid in each texel
+float minimumDripAmount;
+
+// dry/ decay
+int dryAmount;
+int decayAmount;
+
+// brushes
+float4 drawData[4];
+float sqrRadius;
+float amount;
+float brushSizeInv;
+float brushDepth;
+
+// unpack raw texel data
+[numthreads (8, 8, 1)]
+void loadTexelMap (uint3 id : SV_DispatchThreadID) {			
+	
+	uint2 input = texelInput[id.x + id.y * textureSize];
+	bool inside = input.y & 1;
+	uint trisID = input.y >> 1;
+
+	TrianglePacked tri = triangleData[trisID];
+
+	// unpack vertices
+	uint3 v0 = uint3(tri.v0xy >> 16, tri.v0xy & 0xFFFF, tri.v01z >> 16);
+	uint3 v1 = uint3(tri.v1xy >> 16, tri.v1xy & 0xFFFF, tri.v01z & 0xFFFF);
+	uint3 v2 = uint3(tri.v2xy >> 16, tri.v2xy & 0xFFFF, tri.v2zN & 0xFFFF);
+	// unpack uv
+	uint2 uv0 = uint2(tri.uv0 >> 16, tri.uv0 & 0xFFFF);
+	uint2 uv1 = uint2(tri.uv1 >> 16, tri.uv1 & 0xFFFF);
+	uint2 uv2 = uint2(tri.uv2 >> 16, tri.uv2 & 0xFFFF);
+	// unpack barycentric coordinates
+	float3 bary = float3(0, (input.x >> 16) * HALFINV, (input.x & 0xFFFF) * HALFINV);
+	bary.x = 1 - bary.y - bary.z;
+
+	uint3 localWorldPos = (uint3)((float3)v0 * bary.x + (float3)v1 * bary.y + (float3)v2 * bary.z);		// world position of the texel
+	uint2 sampleUV = (uint2)((float2)uv0 * bary.x + (float2)uv1 * bary.y + (float2)uv2 * bary.z);
+	uint uv = (sampleUV.x << 16) | (sampleUV.y & 0xFFFF);	// repack uv
+	
+	uint posXY = (localWorldPos.x << 16) | (localWorldPos.y & 0xFFFF);	// save local position
+	uint posZNorm = localWorldPos.z & 0xFFFF;	
+	posZNorm |= tri.v2zN & 0xFFFF0000;			// combine with compressed normal
+
+#if INTEGER_RT_SUPPORT
+	texelTexW[id.xy] = uint4(posXY, posZNorm, uv, input.y);
+#else
+	texelBuf[id.x + id.y * textureSize] = uint4(posXY, posZNorm, uv, input.y);
+#endif
+}
+
+// calculate gravity pull for each triangle in uv space
+[numthreads (64, 1, 1)]
+void updateGravityVectors (uint3 id : SV_DispatchThreadID) {		
+	if (id.x >= triangleCountUnpadded) return;
+
+	float4 tanBinorm = tangents[id.x];
+
+	// convert back from polar
+	float sinTheta = sin (tanBinorm.x);
+	float3 tan = float3(sinTheta * cos (tanBinorm.y), sinTheta * sin (tanBinorm.y), cos (tanBinorm.x));
+	sinTheta = sin (tanBinorm.z);
+	float3 binorm = float3 (sinTheta * cos (tanBinorm.w), sinTheta * sin (tanBinorm.w), cos (tanBinorm.z));
+
+	gravityVectors[id.x] = float4 (tan.x * gravity.x + tan.y * gravity.y + tan.z * gravity.z,
+		binorm.x * gravity.x + binorm.y * gravity.y + binorm.z * gravity.z, 0, 0);
+}
+
+// unpack vector (length 1) from uint to full float3 (using polar coordinates)
+float3 unpackNormal (uint packed) {		
+	packed >>= 16;
+	float theta = (packed >> 8) * QUATERINV * PI;
+	float phi = (packed & 0xFF) * QUATERINV * PI * 2 - PI;
+	return float3(sin (theta)*cos (phi), sin (theta)*sin (phi), cos (theta));
+}
+
+[numthreads (8, 8, 1)]
+void updateGravityMapNormal (uint3 id : SV_DispatchThreadID) {		// with influence from normalmap
+#if INTEGER_RT_SUPPORT
+	uint4 bary = texelTexR[id.xy];
+#else
+	uint4 bary = texelBuf[id.x + id.y * textureSize];
+#endif
+	
+	bool inside = bary.w & 1;
+	uint trisID = bary.w >> 1;
+
+	float2 unpackedUV = float2(bary.z >> 16, bary.z & 0xFFFF) * HALFINV;
+
+	float2 n = normalTex.SampleLevel (_LinearClamp, (id.xy + float2(.5f, .5f)) * textureSizeInverse, 0).wy * 2 - (float2)1;
+
+	float2 g = (float2)gravityVectors[trisID];
+
+	float2 gravitySamplePos = (id.xy - g * speed + float2(.5, .5)) * textureSizeInverse;
+
+	float3 normal = unpackNormal (bary.y);
+
+	uint w = (1 - (1 - abs (dot (normal, gravity))) * slopeAmount - clamp (dot (g, n), -1, 1) * normalAmount * .5f) * roughness;		//slope of the surface + normal influence
+
+#if INTEGER_RT_SUPPORT
+	uint4 fluid = fluidTexR[id.xy];
+#else
+	uint4 fluid = fluidBuf[id.x + id.y * textureSize];
+#endif
+	float2 uvPos = inside ? unpackedUV : gravitySamplePos;
+	uint uvPacked = ((uint)(uvPos.x * 0xFFFF) << 16) | (uint)(uvPos.y * 0xFFFF);
+	uint4 result = uint4(fluid.xy, w, uvPacked); //blood w uv
+
+#if INTEGER_RT_SUPPORT
+	fluidTexW[id.xy] = result; 
+#else
+	fluidBuf[id.x + id.y * textureSize] = result; //blood w uv
+#endif
+}
+
+[numthreads (8, 8, 1)]
+void updateGravityMap (uint3 id : SV_DispatchThreadID) {
+#if INTEGER_RT_SUPPORT
+	uint4 bary = texelTexR[id.xy];
+#else
+	uint4 bary = texelBuf[id.x + id.y * textureSize];
+#endif
+
+	bool inside = bary.w & 1;
+	uint trisID = bary.w >> 1;
+
+	float2 unpackedUV = float2(bary.z >> 16, bary.z & 0xFFFF) * HALFINV;
+
+	float2 g = (float2)gravityVectors[trisID];
+
+	float2 gravitySamplePos = (id.xy - g * speed + float2(.5, .5)) * textureSizeInverse;
+
+	float3 normal = unpackNormal (bary.y);
+
+	uint w = (1 - (1 - abs (dot (normal, gravity))) * slopeAmount) * roughness;     // slope of the surface
+
+#if INTEGER_RT_SUPPORT
+	uint4 fluid = fluidTexR[id.xy];
+#else
+	uint4 fluid = fluidBuf[id.x + id.y * textureSize];
+#endif
+	float2 uvPos = inside ? unpackedUV : gravitySamplePos;
+	uint uvPacked = ((uint)(uvPos.x * 0xFFFF) << 16) | (uint)(uvPos.y * 0xFFFF);
+	uint4 result = uint4(fluid.xy, w, uvPacked); // blood w uv
+
+#if INTEGER_RT_SUPPORT
+	fluidTexW[id.xy] = result;
+#else
+	fluidBuf[id.x + id.y * textureSize] = result;
+#endif
+}
+
+// calculate moving fluid
+[numthreads (8, 8, 1)]
+void updateFluid (uint3 id : SV_DispatchThreadID) {	
+	// load fluid
+#if INTEGER_RT_SUPPORT	
+	uint4 fluid = fluidTexR[id.xy];				
+#else
+	uint4 fluid = fluidBuf[id.x + id.y * textureSize];
+#endif
+
+	float center = flowR[id.xy];
+
+	float right = flowR[id.xy + int2(1, 0)];	// get fluid above and right, to calculate normal later
+	float up = flowR[id.xy + int2(0, 1)];
+
+	float2 pos = float2((fluid.w >> 16), (fluid.w & 0xFFFF)) * HALFINV;
+	int inflow = flowR.SampleLevel (_LinearClamp, pos, 0);	// get in flowing fluid
+
+	float outflow = max (0.0f, (float)fluid.x - fluid.z + inflow);	// calculate out flow
+	int amount = max(0, (int)fluid.x + inflow - outflow - decayAmount);
+
+	flowW[id.xy] = (int)(outflow * DAMPEN) + min (.99f, amount * MULTI_inv * .2);	// save outflow for next update (and stored fluid in fractional part, for low cost normal computation)
+
+	int age = clamp ((int)fluid.y - dryAmount + inflow, 0, MULTI);		// update age
+	uint4 newFluid = uint4(amount, age, fluid.zw);	// save changes
+#if INTEGER_RT_SUPPORT	
+	fluidTexW[id.xy] = newFluid;
+#else
+	fluidBuf[id.x + id.y * textureSize] = newFluid;
+#endif
+
+	//draw final
+	center = center + frac (center) * MULTI * 5;
+	float2 normal = float2(clamp (center - right - frac (right) * MULTI * 5, -MULTI, MULTI), clamp (center - up - frac (up) * MULTI * 5, -MULTI, MULTI)) * MULTI_inv;	//calculate normal
+
+	finalTex[id.xy] = float4(min (1, amount * MULTI_inv), clamp (age * MULTI_inv, 0, 1), normal * .5f + .5f);	// write new data to fluid texture
+}
+
+[numthreads (8, 8, 1)]
+void evaporateFluid (uint3 id : SV_DispatchThreadID) {
+	// load fluid
+#if INTEGER_RT_SUPPORT	
+	uint4 fluid = fluidTexR[id.xy];	
+#else
+	uint4 fluid = fluidBuf[id.x + id.y * textureSize];
+#endif
+
+	float center = frac(flowR[id.xy]);						// get fluid above and right, to calculate normal later
+	float right = frac(flowR[id.xy + int2(1, 0)]);	
+	float up = frac(flowR[id.xy + int2(0, 1)]);
+
+	// decay
+	fluid.x = max ((int)fluid.x - decayAmount, 0);	
+	// dry
+	fluid.y = max ((int)fluid.y - dryAmount, 0);
+
+	// save
+#if INTEGER_RT_SUPPORT	
+	fluidTexW[id.xy] = fluid;
+#else
+	fluidBuf[id.x + id.y * textureSize] = fluid;
+#endif
+
+	float2 normal = float2(clamp ((center - right) * 5, -1, 1), clamp ((center - up) * 5, -1, 1));	// calculate normal
+	finalTex[id.xy] = float4(min (1, fluid.x * MULTI_inv), clamp (fluid.y * MULTI_inv, 0, 1), normal * .5f + .5f);
+}
+
+// unpack position from 1.5 uints to 3 floats
+float3 unpackPosition (uint2 packed, float3 size) {
+	return float3((float)(packed.x >> 16) * HALFINV * size.x,
+		(float)(packed.x & 0xFFFF) * HALFINV * size.y,
+		(float)(packed.y & 0xFFFF) * HALFINV * size.z);
+}
+
+//Brushes
+[numthreads (8, 8, 1)]
+void sphereBrush (uint3 id : SV_DispatchThreadID) {
+	float3 size = (float3)bounds[0];
+#if INTEGER_RT_SUPPORT	
+	uint4 texel = texelTexR[id.xy];
+#else
+	uint4 texel = texelBuf[id.x + id.y * textureSize];
+#endif
+	float3 pos = unpackPosition (texel.xy, size);
+	pos -= (float3)drawData[0];
+	float k = dot (pos, pos);
+
+	flowW[id.xy] = flowW[id.xy] + (k <= sqrRadius ? amount : 0);			// texel inside the sphere?
+}
+
+
+[numthreads (8, 8, 1)]
+void textureBrush (uint3 id : SV_DispatchThreadID) {
+	float3 size = (float3)bounds[0];
+
+#if INTEGER_RT_SUPPORT	
+	uint4 texel = texelTexR[id.xy];
+#else
+	uint4 texel = texelBuf[id.x + id.y * textureSize];
+#endif
+	float3 texelPos = unpackPosition (texel.xy, size);
+	float3 normal = unpackNormal (texel.y);
+
+	float3 startPos = (float3)drawData[0];
+	float3 forward = (float3)drawData[1];
+	float3 right = (float3)drawData[2];
+	float3 up = (float3)drawData[3];
+
+	float3 dir = texelPos - startPos;						// project the brush texture onto the object
+	float x = (dot (dir, right) * brushSizeInv + 1) * .5f;
+	float y = (dot (dir, up) * brushSizeInv + 1) * .5f;
+	float z = dot (dir, forward);
+
+	bool paint = x >= 0 && x <= 1 && y >= 0 && y <= 1 && z >= 0 && z < brushDepth && dot (normal, forward) < 0;
+	float strength = brushTex.SampleLevel (_LinearClamp, float2(x, y), 0).a;
+
+	flowW[id.xy] = flowW[id.xy] + (paint ? amount * strength : 0);
+}
+
+
+[numthreads (8, 8, 1)]
+void discBrush (uint3 id : SV_DispatchThreadID) {
+	float3 size = (float3)bounds[0];
+
+#if INTEGER_RT_SUPPORT	
+	uint4 texel = texelTexR[id.xy];
+#else
+	uint4 texel = texelBuf[id.x + id.y * textureSize];
+#endif
+	float3 texelPos = unpackPosition (texel.xy, size);
+
+	float3 startPos = (float3)drawData[0];
+	float3 normal = (float3)drawData[1];
+	float d = dot (normal, startPos);
+
+	float3 pointOnDisc = texelPos - dot (texelPos - startPos, normal) * normal;		// texelposition projected onto the plane
+	startPos -= pointOnDisc;
+	float distCenter = dot (startPos, startPos);		// squared distance from center to pointOnDisc
+	texelPos -= pointOnDisc;
+	float distPlane = dot (texelPos, texelPos);			// squared distance from texel to pointOnDisc
+
+	flowW[id.xy] = flowW[id.xy] + ((distPlane <= brushDepth) && (distCenter <= sqrRadius) ? amount : 0);
+}
+
+
+//Drip
+
+groupshared int maxDrip[16 * 16];
+groupshared uint maxIDColumn[16];
+groupshared uint maxIDRow;
+[numthreads (16, 16, 1)]
+void calculateDrip (uint3 id : SV_GroupThreadID, uint3 idThread : SV_DispatchThreadID) {		//calcualte max fluid for each Group
+#if INTEGER_RT_SUPPORT	
+	uint4 texel = texelTexR[idThread.xy];
+#else
+	uint4 texel = texelBuf[idThread.x + idThread.y * textureSize];
+#endif
+
+	float3 normal = unpackNormal (texel.y);
+	bool inside = texel.w & 1;
+
+	float pull = clamp(dot (normal, gravity), 0, 1);
+	pull = pull * pull;
+
+	float fluid = flowW[idThread.xy];
+	float drip = max (fluid * pull, 0);
+	maxDrip[id.x + id.y * GROUPSIZE_DRIP] = !inside ? (int)drip : 0;
+
+	flowW[idThread.xy] = (drip > minimumDripAmount ? -drip : 0) + fluid;
+
+	GroupMemoryBarrierWithGroupSync ();
+
+	if (id.y == 0) {		// get id of maximum drip of each column
+		int maxVal = maxDrip[id.x];
+		uint maxID = 0;
+		for (int y = 1; y < GROUPSIZE_DRIP; y++) {
+			float cDrip = maxDrip[id.x + y * GROUPSIZE_DRIP];
+			maxID = cDrip > maxVal ? y : maxID;
+			maxVal = max (maxVal, cDrip);
+		}
+		maxIDColumn[id.x] = maxID;
+		maxDrip[id.x] = maxVal;
+	}
+
+	GroupMemoryBarrierWithGroupSync ();
+
+	if (id.x == 0 && id.y == 0) {		// get maximum of columns
+		int maxVal = maxDrip[0];
+		uint maxID = 0;
+		for (int x = 1; x < GROUPSIZE_DRIP; x++) {		
+			float cDrip = maxDrip[x];
+			maxID = cDrip > maxVal ? x : maxID;
+			maxVal = max(cDrip, maxVal);
+		}
+		maxIDRow = maxID;
+	}
+
+	GroupMemoryBarrierWithGroupSync ();
+
+	if (id.x == maxIDRow && id.y == maxIDColumn[id.x]) {
+		if (drip > minimumDripAmount) {
+			drops.Append (uint2(texel.x, (texel.y & 0xFFFF) | (min ((uint)drip, 0xFFFF)) << 16));		// add drop
+		}
+	}
+}
+
+
+[numthreads (8, 8, 1)]
+void resetFluid (uint3 id : SV_DispatchThreadID) {
+#if INTEGER_RT_SUPPORT	
+	uint4 fluid = fluidTexR[id.xy];
+	fluidTexW[id.xy] = uint4(0, 0, fluid.zw);
+#else
+	uint4 fluid = fluidBuf[id.x + id.y * textureSize];
+	fluidBuf[id.x + id.y * textureSize] = uint4(0, 0, fluid.zw);
+#endif
+	
+	flowW[id.xy] = 0;
+	finalTex[id.xy] = float4(0, 0, 0, 0);
+}
+

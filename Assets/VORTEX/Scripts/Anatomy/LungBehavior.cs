@@ -8,6 +8,7 @@ public class LungBehavior : MonoBehaviour
     public Material enterMaterial;
 
     public bool inLung; //TO DO: Only handles the insertion of one tool, need to update for multiple tool tracking
+    public bool syringeInLung;
 
     private PatientManager patient;
     private MeshRenderer meshRenderer;
@@ -28,6 +29,16 @@ public class LungBehavior : MonoBehaviour
             other.GetComponent<NeedleBehavior>().NeedleInserted(true);
             Debug.Log("Needle decompression event");
             PatientEvents.Instance.TriggerNeedleDecompression();           
+        }
+
+        if(other.tag == "Syringe")
+        {
+            syringeInLung = true;
+            meshRenderer.material = enterMaterial;
+            other.GetComponent<NeedleBehavior>().NeedleInserted(true);
+            string med = other.GetComponent<Medication>().medication.ToString();
+            Debug.Log(med + " administered");
+            patient.pulseEventManager.AdministerMedication(med);
         }
     }
 

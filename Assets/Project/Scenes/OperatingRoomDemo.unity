@@ -3876,6 +3876,14 @@ PrefabInstance:
   m_Modification:
     m_TransformParent: {fileID: 206804665}
     m_Modifications:
+    - target: {fileID: 935709765, guid: 2dcebe6e071d1be4d8e9b251432a53b1, type: 3}
+      propertyPath: m_Positions.Array.data[0].y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 935709765, guid: 2dcebe6e071d1be4d8e9b251432a53b1, type: 3}
+      propertyPath: m_Positions.Array.data[1].y
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 727714316855875457, guid: 2dcebe6e071d1be4d8e9b251432a53b1,
         type: 3}
       propertyPath: m_Name
@@ -6534,6 +6542,50 @@ MonoBehaviour:
   Teleporting: {fileID: 1578675044}
   XRTeleportationObject: {fileID: 1946027115}
   SteamTeleportationObject: {fileID: 33634567}
+--- !u!114 &1773562400
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1b542d476b1044fe5a410c288650ba2a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  fields:
+  - Simulation Time(s)
+  - Lead3ElectricPotential(mV)
+  - "HeartRate(1\u2215min)"
+  - ArterialPressure(mmHg)
+  - MeanArterialPressure(mmHg)
+  - SystolicArterialPressure(mmHg)
+  - DiastolicArterialPressure(mmHg)
+  - OxygenSaturation()
+  - EndTidalCarbonDioxidePressure(mmHg)
+  - "RespirationRate(1\u2215min)"
+  - SkinTemperature(degC)
+  - Carina-CarbonDioxide-PartialPressure(mmHg)
+  - BloodVolume(mL)
+  - "RightArmVasculature-InFlow(mL\u2215min)"
+  timeStampList:
+    list: []
+  valuesTable:
+  - list: []
+  - list: []
+  - list: []
+  - list: []
+  - list: []
+  - list: []
+  - list: []
+  - list: []
+  - list: []
+  - list: []
+  - list: []
+  - list: []
+  - list: []
+  - list: []
 --- !u!114 &1775280822
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -8853,6 +8905,11 @@ PrefabInstance:
         type: 3}
       propertyPath: m_Name
       value: PatientMale4
+      objectReference: {fileID: 0}
+    - target: {fileID: 2232253496012461974, guid: 1dee0794db3362b438c426b5f84822a9,
+        type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2927858051524633989, guid: 1dee0794db3362b438c426b5f84822a9,
         type: 3}

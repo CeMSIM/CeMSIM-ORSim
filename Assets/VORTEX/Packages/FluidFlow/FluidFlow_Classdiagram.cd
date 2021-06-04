@@ -1,0 +1,251 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ClassDiagram MajorVersion="1" MinorVersion="1">
+  <Class Name="FluidSimulation.DropHandler" Collapsed="true">
+    <Position X="5.25" Y="8.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAgAAAABAAAAAAAAEAAAAAAAAAAIAAAAEA=</HashCode>
+      <FileName>Assets\FluidFlow\Scripts\DropHandler.cs</FileName>
+    </TypeIdentifier>
+    <ShowAsAssociation>
+      <Field Name="simulator" />
+    </ShowAsAssociation>
+  </Class>
+  <Class Name="FluidSimulation.FluidObject" Collapsed="true">
+    <Position X="2" Y="5" Width="2" />
+    <NestedTypes>
+      <Struct Name="FluidSimulation.FluidObject.TriangleData" Collapsed="true">
+        <TypeIdentifier>
+          <NewMemberFileName>Assets\FluidFlow\Scripts\FluidObject.cs</NewMemberFileName>
+        </TypeIdentifier>
+      </Struct>
+      <Struct Name="FluidSimulation.FluidObject.UVData" Collapsed="true">
+        <TypeIdentifier>
+          <NewMemberFileName>Assets\FluidFlow\Scripts\FluidObject.cs</NewMemberFileName>
+        </TypeIdentifier>
+      </Struct>
+    </NestedTypes>
+    <TypeIdentifier>
+      <HashCode>AwMAkKCQEgAAAgDAAICCBRAUgBAiMAAQNqAKFl+oAAE=</HashCode>
+      <FileName>Assets\FluidFlow\Scripts\FluidObject.cs</FileName>
+    </TypeIdentifier>
+    <ShowAsAssociation>
+      <Field Name="compressionState" />
+      <Field Name="uvChanel" />
+    </ShowAsAssociation>
+  </Class>
+  <Class Name="FluidSimulation.FluidSimulationManager">
+    <Position X="3" Y="1" Width="2.5" />
+    <Members>
+      <Field Name="_instance" Hidden="true" />
+      <Field Name="_simulationShader" Hidden="true" />
+      <Property Name="amountValueID" Hidden="true" />
+      <Property Name="ASYNCGPUREADBACK_SUPPORT" Hidden="true" />
+      <Method Name="Awake" Hidden="true" />
+      <Property Name="boundsBufferID" Hidden="true" />
+      <Property Name="brushDepthValueID" Hidden="true" />
+      <Property Name="brushSizeInvValueID" Hidden="true" />
+      <Property Name="brushTexID" Hidden="true" />
+      <Method Name="cacheShaderIDs" Hidden="true" />
+      <Property Name="calcDripKernelID" Hidden="true" />
+      <Method Name="CheckComputeShaderSupport" Hidden="true" />
+      <Property Name="COMPUTESHADER_SUPPORT" Hidden="true" />
+      <Field Name="currentCyclesPerSecond" Hidden="true" />
+      <Property Name="decayAmountValueID" Hidden="true" />
+      <Property Name="discBrushKernelID" Hidden="true" />
+      <Property Name="drawDataID" Hidden="true" />
+      <Property Name="dropsBufferID" Hidden="true" />
+      <Property Name="dryAmountValueID" Hidden="true" />
+      <Method Name="EnqueueSimulator" Hidden="true" />
+      <Method Name="EnterSharedData" Hidden="true" />
+      <Property Name="evapFluidKernelID" Hidden="true" />
+      <Property Name="finalTexID" Hidden="true" />
+      <Property Name="flowTexRID" Hidden="true" />
+      <Property Name="flowTexWID" Hidden="true" />
+      <Property Name="fluidBufferID" Hidden="true" />
+      <Property Name="fluidSpeedValueID" Hidden="true" />
+      <Property Name="fluidTexRID" Hidden="true" />
+      <Property Name="fluidTexWID" Hidden="true" />
+      <Method Name="GetSharedData" Hidden="true" />
+      <Property Name="gravityValueID" Hidden="true" />
+      <Property Name="gravityVecBufferID" Hidden="true" />
+      <Method Name="HasSharedData" Hidden="true" />
+      <Property Name="instance" Hidden="true" />
+      <Field Name="lastUpdateMode" Hidden="true" />
+      <Property Name="loadTexelMapKernelID" Hidden="true" />
+      <Property Name="minDripAmtValueID" Hidden="true" />
+      <Field Name="MULTI" Hidden="true" />
+      <Property Name="normalAmountValueID" Hidden="true" />
+      <Property Name="normalTexID" Hidden="true" />
+      <Method Name="OnDestroy" Hidden="true" />
+      <Method Name="ReleaseSharedData" Hidden="true" />
+      <Method Name="RemoveSimulator" Hidden="true" />
+      <Property Name="resetFluidKernelID" Hidden="true" />
+      <Property Name="roughnessValueID" Hidden="true" />
+      <Field Name="sharedSimulationData" Hidden="true" />
+      <Method Name="simulationCycle" Hidden="true" />
+      <Event Name="SimulationCycle" Hidden="true" />
+      <Property Name="simulationShader" Hidden="true" />
+      <Field Name="skippedFrames" Hidden="true" />
+      <Property Name="slopeAmountValueID" Hidden="true" />
+      <Property Name="sphereBurshKernelID" Hidden="true" />
+      <Property Name="sqrRadiusValueID" Hidden="true" />
+      <Property Name="tangentBufferID" Hidden="true" />
+      <Property Name="texelBufferID" Hidden="true" />
+      <Property Name="texelInputBufferID" Hidden="true" />
+      <Property Name="texelTexRID" Hidden="true" />
+      <Property Name="texelTexWID" Hidden="true" />
+      <Property Name="texSizeInvValueID" Hidden="true" />
+      <Property Name="texSizeValueID" Hidden="true" />
+      <Property Name="textureBurshKernelID" Hidden="true" />
+      <Property Name="triangleDataBufferID" Hidden="true" />
+      <Property Name="trisCountValueID" Hidden="true" />
+      <Method Name="Update" Hidden="true" />
+      <Property Name="updateFluidKernelID" Hidden="true" />
+      <Method Name="updateFluidSimulators" Hidden="true" />
+      <Property Name="updateGravMapKernelID" Hidden="true" />
+      <Property Name="updateGravMapNormalKernelID" Hidden="true" />
+      <Property Name="updateGravVecKernelID" Hidden="true" />
+      <Method Name="UpdateInvokeTime" Hidden="true" />
+      <Field Name="updateQueue" Hidden="true" />
+      <Property Name="USE_INTEGER_RENDERTEXTURE" Hidden="true" />
+      <Field Name="useIntegerRendertexture" Hidden="true" />
+    </Members>
+    <NestedTypes>
+      <Enum Name="FluidSimulation.FluidSimulationManager.UpdateMode">
+        <TypeIdentifier>
+          <NewMemberFileName>Assets\FluidFlow\Scripts\FluidSimulationManager.cs</NewMemberFileName>
+        </TypeIdentifier>
+      </Enum>
+      <Struct Name="FluidSimulation.FluidSimulationManager.SharedSimulationData">
+        <TypeIdentifier>
+          <NewMemberFileName>Assets\FluidFlow\Scripts\FluidSimulationManager.cs</NewMemberFileName>
+        </TypeIdentifier>
+      </Struct>
+    </NestedTypes>
+    <TypeIdentifier>
+      <HashCode>pCRFXgABSgjEIAgFgKCAAmYBQC1hWUCgApEDDgEkAsk=</HashCode>
+      <FileName>Assets\FluidFlow\Scripts\FluidSimulationManager.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="FluidSimulation.FluidSimulator">
+    <Position X="6" Y="4" Width="2" />
+    <Members>
+      <Method Name="AddedNewFluid" Hidden="true" />
+      <Method Name="Awake" Hidden="true" />
+      <Field Name="boneIdMap" Hidden="true" />
+      <Field Name="bones" Hidden="true" />
+      <Field Name="boundsBuffer" Hidden="true" />
+      <Method Name="cacheBoneIds" Hidden="true" />
+      <Method Name="calculateDrop" Hidden="true" />
+      <Field Name="checkForDrops" Hidden="true" />
+      <Field Name="countBuffer" Hidden="true" />
+      <Method Name="DecompressFluidObject" Hidden="true" />
+      <Field Name="deltaTime" Hidden="true" />
+      <Field Name="dropBuffer" Hidden="true" />
+      <Method Name="dropReadback" Hidden="true" />
+      <Field Name="dropUpdateSkipAmount" Hidden="true" />
+      <Field Name="dryTime" Hidden="true" />
+      <Field Name="evapAmount" Hidden="true" />
+      <Method Name="evaporateFluid" Hidden="true" />
+      <Field Name="evaporationPerSecond" Hidden="true" />
+      <Field Name="finTex" Hidden="true" />
+      <Field Name="flowShader" Hidden="true" />
+      <Field Name="flowTex" Hidden="true" />
+      <Field Name="flowTexDescriptor" Hidden="true" />
+      <Field Name="fluidBuf" Hidden="true" />
+      <Field Name="fluidRenderer" Hidden="true" />
+      <Field Name="fluidTex" Hidden="true" />
+      <Field Name="fluidTexDescriptor" Hidden="true" />
+      <Method Name="getBoneId" Hidden="true" />
+      <Method Name="getTemporaryRT" Hidden="true" />
+      <Method Name="GetUVChanel" Hidden="true" />
+      <Field Name="gravityBuffer" Hidden="true" />
+      <Field Name="groupCount" Hidden="true" />
+      <Field Name="groupCountDrop" Hidden="true" />
+      <Field Name="HalfInv" Hidden="true" />
+      <Method Name="Init" Hidden="true" />
+      <Method Name="initialize" Hidden="true" />
+      <Property Name="Initialized" Hidden="true" />
+      <Field Name="isInUpdateQueue" Hidden="true" />
+      <Method Name="isSimulatorActive" Hidden="true" />
+      <Method Name="isSkinned" Hidden="true" />
+      <Method Name="LoadTexelData" Hidden="true" />
+      <Field Name="localGravity" Hidden="true" />
+      <Field Name="minimumDripAmount" Hidden="true" />
+      <Field Name="normal" Hidden="true" />
+      <Field Name="normalMap" Hidden="true" />
+      <Method Name="OnDestroy" Hidden="true" />
+      <Field Name="rendererTransform" Hidden="true" />
+      <Method Name="ResetFluid" Hidden="true" />
+      <Field Name="roughness" Hidden="true" />
+      <Method Name="SetMaterialData" Hidden="true" />
+      <Method Name="setupShaderData" Hidden="true" />
+      <Method Name="SimulateFlow" Hidden="true" />
+      <Method Name="simulationCycle" Hidden="true" />
+      <Field Name="skippedDropUpdates" Hidden="true" />
+      <Field Name="slope" Hidden="true" />
+      <Field Name="speed" Hidden="true" />
+      <Field Name="tangentBuffer" Hidden="true" />
+      <Field Name="texelBuf" Hidden="true" />
+      <Field Name="texelTex" Hidden="true" />
+      <Field Name="texSize" Hidden="true" />
+      <Field Name="timeout" Hidden="true" />
+      <Field Name="timeTillDry" Hidden="true" />
+      <Field Name="totalMaxFluid" Hidden="true" />
+      <Method Name="Update" Hidden="true" />
+      <Field Name="updateCounter" Hidden="true" />
+      <Field Name="useFluidEvapoation" Hidden="true" />
+    </Members>
+    <Compartments>
+      <Compartment Name="Properties" Collapsed="true" />
+    </Compartments>
+    <NestedTypes>
+      <Class Name="FluidSimulation.FluidSimulator.DripEvent" Collapsed="true">
+        <TypeIdentifier>
+          <NewMemberFileName>Assets\FluidFlow\Scripts\FluidSimulator.cs</NewMemberFileName>
+        </TypeIdentifier>
+      </Class>
+      <Struct Name="FluidSimulation.FluidSimulator.uint2" Collapsed="true">
+        <TypeIdentifier>
+          <NewMemberFileName>Assets\FluidFlow\Scripts\FluidSimulator.cs</NewMemberFileName>
+        </TypeIdentifier>
+      </Struct>
+    </NestedTypes>
+    <TypeIdentifier>
+      <HashCode>AhRDsMAAKiGoRDBQACkhIQvEQEA4AQUIQJhDwAHMSHQ=</HashCode>
+      <FileName>Assets\FluidFlow\Scripts\FluidSimulator.cs</FileName>
+    </TypeIdentifier>
+    <ShowAsAssociation>
+      <Field Name="fluidObject" />
+      <Field Name="simManager" />
+    </ShowAsAssociation>
+  </Class>
+  <Class Name="FluidSimulation.GravityUpdater" Collapsed="true">
+    <Position X="7.25" Y="8.75" Width="1.5" />
+    <Compartments>
+      <Compartment Name="Fields" Collapsed="true" />
+    </Compartments>
+    <TypeIdentifier>
+      <HashCode>AAQAAAAAACAAAAAABAECAAAAAABgAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Assets\FluidFlow\Scripts\GravityUpdater.cs</FileName>
+    </TypeIdentifier>
+    <ShowAsAssociation>
+      <Field Name="simulator" />
+    </ShowAsAssociation>
+  </Class>
+  <Enum Name="FluidSimulation.UV">
+    <Position X="0.5" Y="6.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIAAAAAAAAA=</HashCode>
+      <FileName>Assets\FluidFlow\Scripts\FluidObject.cs</FileName>
+    </TypeIdentifier>
+  </Enum>
+  <Enum Name="FluidSimulation.CompressionState">
+    <Position X="2.5" Y="6.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAIAAAAAAAAAAAAAAEAAAAAAQA=</HashCode>
+      <FileName>Assets\FluidFlow\Scripts\FluidObject.cs</FileName>
+    </TypeIdentifier>
+  </Enum>
+  <Font Name="Segoe UI" Size="9" />
+</ClassDiagram>

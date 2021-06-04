@@ -10,6 +10,18 @@ public class PulseEventManager : MonoBehaviour
     public delegate void TriggerAction();
     public static event TriggerAction triggerAction;
 
+    public delegate void AdministerDrug();
+    public static event AdministerDrug administerDrug;
+
+   // private void OnEnable()
+   // {
+   //     PatientEvents.Instance.PatientPneumothorax += TriggerPulseAction;
+   // }
+   // private void OnDisable()
+   // {
+   //     PatientEvents.Instance.PatientPneumothorax -= TriggerPulseAction;
+   // }
+
     private void Start()
     {
         actionManager = this.GetComponent<PulseActionManager>();
@@ -21,4 +33,46 @@ public class PulseEventManager : MonoBehaviour
 
         triggerAction?.Invoke();
     }
+
+    public void TriggerPulseAction(Pulse.CDM.PulseAction action, float severity)
+    {
+        actionManager.action = action;
+        actionManager.pneumothoraxSeverity = severity;
+        ScenarioManager.Instance.pneumothoraxSeverity = severity;
+
+        triggerAction?.Invoke();
+    }
+
+   public void AdministerMedication(string medicationName)
+   {
+       switch (medicationName)
+       {
+           case "Epinephrine":
+               {
+                   actionManager.drug = Pulse.CDM.Drug.StartEpinephrineInfusion;
+                   break;
+               }
+           case "Succinylcholine":
+               {
+                   actionManager.drug = Pulse.CDM.Drug.StartSuccinylcholineInfusion;
+                   break;
+               }
+           case "Propofol":
+               {
+                   actionManager.drug = Pulse.CDM.Drug.StartPropofolInfusion;
+                   break;
+               }
+           case "Rocuronium":
+               {
+                   actionManager.drug = Pulse.CDM.Drug.StartRocuroniumInfusion;
+                   break;
+               }
+           default:
+               {
+                   break;
+               }
+       }
+
+        administerDrug?.Invoke();
+    }    
 }

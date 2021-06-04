@@ -5,6 +5,9 @@ TagManager:
   serializedVersion: 2
   tags:
   - Tool
+  - Syringe
+  - Blood
+  - Patient
   layers:
   - Default
   - TransparentFX

@@ -4,7 +4,8 @@
 
 
 namespace Pulse.CDM
-{ 
+{
+    #region Enum | Actions
     public enum PulseAction : int
     {
         StartCardiacArrest,
@@ -13,8 +14,6 @@ namespace Pulse.CDM
         StopHemorrhage,
         StartIVBag,
         StopIVBag,
-        StartSuccinylcholineInfusion,
-        StopSuccinylcholineInfusion,
         InjectMorphine,
         TensionPneumothorax,
         EndTensionPneumothorax,
@@ -27,7 +26,23 @@ namespace Pulse.CDM
         VentilateIntubation,
         VentilateMask
     }
+    #endregion
 
+    #region Enum | Drugs
+    public enum Drug : int
+    {
+        StartSuccinylcholineInfusion,
+        StopSuccinylcholineInfusion,
+        StartEpinephrineInfusion,
+        StopEpinephrineInfusion,
+        StartPropofolInfusion,
+        StopPropofolInfusion,
+        StartRocuroniumInfusion,
+        StopRocuroniumInfusion
+    }
+    #endregion
+
+    #region Class | External Hemorrhage Component
     public class ExternalHemorrhageCmpt
     {
         public static string RightArm { get { return "RightArm"; } }
@@ -50,7 +65,9 @@ namespace Pulse.CDM
         public static string SmallIntestine { get { return "SmallIntestine"; } }
         public static string LargeIntestine { get { return "LargeIntestine"; } }
     }
+    #endregion
 
+    #region Class | Internal Hemorrhage Component
     public class InternalHemorrhageCmpt
     {
         public static string RightKidney { get { return "RightKidney"; } }
@@ -64,44 +81,69 @@ namespace Pulse.CDM
         public static string Aorta { get { return "Aorta"; } }
         public static string VenaCava { get { return "VenaCava"; } }
     }
+    #endregion
 
+    #region Class | Substance
     public class Substance
     {
         public static string Morphine { get { return "Morphine"; } }
         public static string Succinylcholine { get { return "Succinylcholine"; } }
-    }
 
+        public static string Propofol { get { return "Propofol"; } }
+
+        public static string Rocuronium { get { return "Rocuronium"; } }
+
+        public static string Epinephrine { get { return "Epinephrine"; } }
+    }
+    #endregion
+
+    #region Class | Compound
     public class Compound
     {
         public static string Blood { get { return "Blood"; } }
         public static string Saline { get { return "Saline"; } }
         public static string PackedRBC { get { return "PackedRBC"; } }
     }
+    #endregion
 
     public class PulseActionManager : PulseEngineController
     {
+        #region Variables
+        [UnityEngine.HideInInspector]
         public PulseAction action;
+        //[UnityEngine.HideInInspector]
+        public float pneumothoraxSeverity;
+        [UnityEngine.HideInInspector]
+        public Drug drug;
+        #endregion
 
+        #region Start
         private void Start()
         {
             driver = this.GetComponent<PulseEngineDriver>();
         }
+        #endregion
 
+        #region Events | Subscription
         private void OnEnable()
         {
             PulseEventManager.triggerAction += RunAction;
+            PulseEventManager.administerDrug += AdministerDrug;
         }
 
         private void OnDisable()
         {
             PulseEventManager.triggerAction -= RunAction;
+            PulseEventManager.administerDrug -= AdministerDrug;
         }
+        #endregion
 
+        #region Functions | Run Action
         public void RunAction()
         {
-
             switch (action)
             {
+                #region Cardiac Arrest
                 case PulseAction.StartCardiacArrest:
                     {
                         SECardiacArrest ca = new SECardiacArrest();
@@ -115,6 +157,9 @@ namespace Pulse.CDM
                         ca.SetState(eSwitch.Off);
                         break;
                     }
+                #endregion
+
+                #region Hemorrhage
                 case PulseAction.StartHemorrhage:
                     {
                         SEHemorrhage h = new SEHemorrhage();
@@ -133,6 +178,9 @@ namespace Pulse.CDM
                         driver.engine.ProcessAction(h);
                         break;
                     }
+                #endregion
+
+                #region IV
                 case PulseAction.StartIVBag:
                     {
                         SESubstanceCompoundInfusion sci = new SESubstanceCompoundInfusion();
@@ -151,39 +199,28 @@ namespace Pulse.CDM
                         driver.engine.ProcessAction(sci);
                         break;
                     }
-                case PulseAction.StartSuccinylcholineInfusion:
-                    {
-                        SESubstanceInfusion si = new SESubstanceInfusion();
-                        si.SetSubstance(Substance.Succinylcholine);
-                        si.GetConcentration().SetValue(5000, MassPerVolumeUnit.ug_Per_mL);
-                        si.GetRate().SetValue(100, VolumePerTimeUnit.mL_Per_min);
-                        driver.engine.ProcessAction(si);
-                        break;
-                    }
-                case PulseAction.StopSuccinylcholineInfusion:
-                    {
-                        SESubstanceInfusion si = new SESubstanceInfusion();
-                        si.SetSubstance(Substance.Succinylcholine);
-                        si.GetRate().SetValue(0, VolumePerTimeUnit.mL_Per_min);
-                        driver.engine.ProcessAction(si);
-                        break;
-                    }
+                #endregion
+
+                #region Morphine
                 case PulseAction.InjectMorphine:
                     {
                         SESubstanceBolus bo = new SESubstanceBolus();
                         bo.SetSubstance(Substance.Morphine);
-                        bo.GetConcentration().SetValue(10, MassPerVolumeUnit.mg_Per_mL);
+                        bo.GetConcentration().SetValue(100, MassPerVolumeUnit.mg_Per_mL);
                         bo.GetDose().SetValue(1, VolumeUnit.mL);
                         bo.SetAdminRoute(SESubstanceBolus.eAdministration.Intravenous);
                         driver.engine.ProcessAction(bo);
                         break;
                     }
+                #endregion
+
+                #region Pneumothorax
                 case PulseAction.TensionPneumothorax:
                     {
                         SETensionPneumothorax tp = new SETensionPneumothorax();
                         tp.SetSide(eSide.Left);
                         tp.SetType(eGate.Open);
-                        tp.GetSeverity().SetValue(1.0f);
+                        tp.GetSeverity().SetValue(pneumothoraxSeverity);
                         driver.engine.ProcessAction(tp);
                         break;
                     }
@@ -196,16 +233,22 @@ namespace Pulse.CDM
                         driver.engine.ProcessAction(tp);
                         break;
                     }
-             //   case PulseAction.ChestOcclusiveDresing:
-             //       {
-             //           
-             //           SEChestOcclusiveDressing od = new SEChestOcclusiveDressing();
-             //           od.SetSide(eSide.Left);
-             //           od.SetState(eSwitch.On);
-             //           driver.engine.ProcessAction(od);
-             //           break;
-             //
-             //       }
+                #endregion
+
+                #region Chest Dressing
+                //   case PulseAction.ChestOcclusiveDresing:
+                //       {
+                //           
+                //           SEChestOcclusiveDressing od = new SEChestOcclusiveDressing();
+                //           od.SetSide(eSide.Left);
+                //           od.SetState(eSwitch.On);
+                //           driver.engine.ProcessAction(od);
+                //           break;
+                //
+                //       }
+                #endregion
+
+                #region Needle Decompression
                 case PulseAction.NeedleDecompressions:
                     {
                         SENeedleDecompression nd = new SENeedleDecompression();
@@ -214,6 +257,9 @@ namespace Pulse.CDM
                         driver.engine.ProcessAction(nd);
                         break;
                     }
+                #endregion
+
+                #region Airway Obstruction
                 case PulseAction.StartAirwayObstruction:
                     {
                         SEAirwayObstruction ao = new SEAirwayObstruction();
@@ -228,6 +274,9 @@ namespace Pulse.CDM
                         driver.engine.ProcessAction(ao);
                         break;
                     }
+                #endregion
+
+                #region Intubation
                 case PulseAction.StartIntubation:
                     {
                         SEIntubation tub = new SEIntubation();
@@ -242,6 +291,9 @@ namespace Pulse.CDM
                         driver.engine.ProcessAction(tub);
                         break;
                     }
+                #endregion
+
+                #region Ventilation
                 case PulseAction.VentilateIntubation:
                     {
                         SEAnesthesiaMachineConfiguration am = new SEAnesthesiaMachineConfiguration();
@@ -257,6 +309,7 @@ namespace Pulse.CDM
                         driver.engine.ProcessAction(am);
                         break;
                     }
+                
                 case PulseAction.VentilateMask:
                     {
                         SEAnesthesiaMachineConfiguration am = new SEAnesthesiaMachineConfiguration();
@@ -272,7 +325,125 @@ namespace Pulse.CDM
                         driver.engine.ProcessAction(am);
                         break;
                     }
+                    #endregion
             }
         }
+        #endregion
+
+        #region Functions | Administer Drug
+        public void AdministerDrug()
+        {
+            switch(drug)
+            {
+                #region Drugs | Succinylcholine
+                case Drug.StartSuccinylcholineInfusion:
+                    {
+                        SESubstanceInfusion si = new SESubstanceInfusion();
+                        si.SetSubstance(Substance.Succinylcholine);
+                        si.GetConcentration().SetValue(5000, MassPerVolumeUnit.ug_Per_mL);
+                        si.GetRate().SetValue(100, VolumePerTimeUnit.mL_Per_min);
+                        driver.engine.ProcessAction(si);
+                        break;
+
+                        //SESubstanceBolus bo = new SESubstanceBolus();
+                        //bo.SetSubstance(Substance.Succinylcholine);
+                        //bo.GetConcentration().SetValue(1, MassPerVolumeUnit.mg_Per_L);
+                        //bo.GetDose().SetValue(1, VolumeUnit.mL);
+                        //bo.SetAdminRoute(SESubstanceBolus.eAdministration.Intravenous);
+                        //driver.engine.ProcessAction(bo);
+                        //break;
+                    }
+                case Drug.StopSuccinylcholineInfusion:
+                    {
+                        SESubstanceInfusion si = new SESubstanceInfusion();
+                        si.SetSubstance(Substance.Succinylcholine);
+                        si.GetRate().SetValue(0, VolumePerTimeUnit.mL_Per_min);
+                        driver.engine.ProcessAction(si);
+                        break;
+                    }
+                #endregion
+               
+                #region Drugs | Epinephrine
+                    //TODO: update amounts to match drive doc
+                case Drug.StartEpinephrineInfusion:
+                    {
+                       //SESubstanceInfusion si = new SESubstanceInfusion();
+                       //si.SetSubstance(Substance.Epinephrine);
+                       //si.GetConcentration().SetValue(5f, MassPerVolumeUnit.ug_Per_mL);
+                       //si.GetRate().SetValue(100, VolumePerTimeUnit.mL_Per_min);
+                       //driver.engine.ProcessAction(si);
+                       //break;
+
+                        SESubstanceBolus bo = new SESubstanceBolus();
+                        bo.SetSubstance(Substance.Epinephrine);
+                        bo.GetConcentration().SetValue(1, MassPerVolumeUnit.ug_Per_mL);
+                        bo.GetDose().SetValue(3, VolumeUnit.mL);
+                        bo.SetAdminRoute(SESubstanceBolus.eAdministration.Intravenous);
+                        driver.engine.ProcessAction(bo);
+                        break;
+                    }
+                case Drug.StopEpinephrineInfusion:
+                    {
+                        SESubstanceInfusion si = new SESubstanceInfusion();
+                        si.SetSubstance(Substance.Epinephrine);
+                        si.GetRate().SetValue(0, VolumePerTimeUnit.mL_Per_min);
+                        driver.engine.ProcessAction(si);
+                        break;
+                    }
+                #endregion
+
+                #region Drugs | Propofol
+                //TODO: update amounts to match drive doc
+                case Drug.StartPropofolInfusion:
+                    {
+                        //SESubstanceInfusion si = new SESubstanceInfusion();
+                        //si.SetSubstance(Substance.Propofol);
+                        //si.GetConcentration().SetValue(7050, MassPerVolumeUnit.ug_Per_mL);
+                        //si.GetRate().SetValue(100, VolumePerTimeUnit.mL_Per_min);
+                        //driver.engine.ProcessAction(si);
+                        //break;
+
+                        SESubstanceBolus bo = new SESubstanceBolus();
+                        bo.SetSubstance(Substance.Propofol);
+                        bo.GetConcentration().SetValue(10, MassPerVolumeUnit.mg_Per_mL);
+                        bo.GetDose().SetValue(1, VolumeUnit.mL);
+                        bo.SetAdminRoute(SESubstanceBolus.eAdministration.Intravenous);
+                        driver.engine.ProcessAction(bo);
+                        break;
+                    }
+                case Drug.StopPropofolInfusion:
+                    {
+                        SESubstanceInfusion si = new SESubstanceInfusion();
+                        si.SetSubstance(Substance.Propofol);
+                        si.GetRate().SetValue(0, VolumePerTimeUnit.mL_Per_min);
+                        driver.engine.ProcessAction(si);
+                        break;
+                    }
+                #endregion
+
+                #region Drugs | Rocuronium
+                //TODO: update amounts to match drive doc
+                case Drug.StartRocuroniumInfusion:
+                    {
+                        SESubstanceInfusion si = new SESubstanceInfusion();
+                        si.SetSubstance(Substance.Rocuronium);
+                        si.GetConcentration().SetValue(2700, MassPerVolumeUnit.ug_Per_mL);
+                        si.GetRate().SetValue(100, VolumePerTimeUnit.mL_Per_min);
+                        driver.engine.ProcessAction(si);
+                        break;
+                    }
+                case Drug.StopRocuroniumInfusion:
+                    {
+                        SESubstanceInfusion si = new SESubstanceInfusion();
+                        si.SetSubstance(Substance.Rocuronium);
+                        si.GetRate().SetValue(0, VolumePerTimeUnit.mL_Per_min);
+                        driver.engine.ProcessAction(si);
+                        break;
+                    }
+                    #endregion
+
+            }
+        }
+        #endregion
     }
 }

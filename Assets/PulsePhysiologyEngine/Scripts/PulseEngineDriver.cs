@@ -43,6 +43,7 @@ public class PulseEngineDriver : PulseDataSource
         SEDataRequest.CreatePhysiologyRequest("SkinTemperature", "degC"),
         SEDataRequest.CreateGasCompartmentSubstanceRequest("Carina", "CarbonDioxide", "PartialPressure", "mmHg"),
         SEDataRequest.CreatePhysiologyRequest("BloodVolume", "mL"),
+        SEDataRequest.CreateLiquidCompartmentRequest("RightArmVasculature", "InFlow", "mL/min")
     };
 
     // Create a reference to a double[] that will contain the data returned from Pulse

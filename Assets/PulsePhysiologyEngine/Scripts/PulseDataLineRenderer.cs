@@ -2,6 +2,7 @@
    See accompanying NOTICE file for details.*/
 
 using UnityEngine;
+using System.Collections.Generic;
 
 // Pulse data consumer which draws a vital line
 [ExecuteInEditMode]
@@ -13,9 +14,31 @@ public class PulseDataLineRenderer: PulseDataConsumer
     public Color color = Color.red; // Color of the line renderer
 
     public bool traceInitialLine = true;    // Trace line at start
+    
+    
     public float yMin = 0f;                 // Data minimum value
     public float yMax = 100f;               // Data maximum value
     public float xRange = 10f;              // Time period shown
+
+    #region Dynamic Viewing Variables
+    /*
+    public bool dynamicView = false; 
+     
+    public bool normalView = false;
+    public int normalBuffer = 5;
+    public List<float> normalList = new List<float>();
+
+    public float max = 0;
+    public float currentValue = 0;
+
+    public int viewingBuffer = 5;
+    public List<float> values = new List<float>();
+    public float baseline = 0;
+    public float diff = 0;
+
+    public float dist = 0;
+    */
+    #endregion
 
     float previousTime = 0f;    // Used to determine dt and shift the line
     LineRenderer lineRenderer;  // Inner component tracing the line
@@ -143,7 +166,7 @@ public class PulseDataLineRenderer: PulseDataConsumer
             pos.x = pos.x - dx;
             lineRenderer.SetPosition(i, pos);
         }
-
+        
         // Put new point on far right (far right, id = 0)
         float x = (1 - T.pivot.x) * T.rect.width;
         float y = ValueToY(Mathf.Clamp(val, yMin, yMax));
@@ -194,7 +217,91 @@ public class PulseDataLineRenderer: PulseDataConsumer
 
     float ValueToY(float val)
     {
+      /*
+        if (dynamicView)
+        {     
+            AdjustViewingRange(val);
+        }
+      */
+      
         float p = (val - yMin) / (yMax - yMin);
         return (p - T.pivot.y) * T.rect.height;
+     
     }
+
+    #region Methods | Dynamic Viewing Range
+    /*
+
+    //if list is full, remove last item, shift all items over and add the new item to the top
+    public void InsertNewListItem(float item)
+    {
+        if(values.Count > viewingBuffer -1)
+        {
+            values.RemoveAt(viewingBuffer - 1);
+        }
+        
+        for (int i = viewingBuffer - 1; i < 0; i--)
+        {
+            values[i] = values[i - 1];
+        }
+        values.Insert(0, item);
+    }
+
+    //average the list of values and return for baseline
+    public float AverageValues()
+    {
+        float sum = 0;
+        foreach (float item in values)
+        {
+            sum += item;
+        }
+        return sum / values.Count;
+    }
+
+    //adjust viewing range using baseline
+    public void AdjustViewingRange(float val)
+    {
+        InsertNewListItem(val);
+
+        baseline = AverageValues();
+
+        yMax = baseline + 75;
+        yMin = baseline - 75;
+        
+    }
+    */
+    #endregion
+
+    #region | Dynamic Viewing Range 2
+    /*
+    public void SetViewingFrame()
+    {
+        
+    }
+
+    public float CalculateMaximum(List<float> list)
+    {
+        float max = 0;
+
+        foreach(float item in list)
+        {
+            if(item > max)
+            {
+                max = item;
+            }
+        }
+        return max;
+    }
+
+    public void NormalizeListValues(List<float> list, float max)
+    {
+        List<float> normalList = new List<float>();
+        
+        foreach(float item in list)
+        {
+            normalList.Add(item / max);
+        }
+    }
+    */
+    #endregion
 }

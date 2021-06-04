@@ -1,0 +1,242 @@
+﻿//kernels
+#pragma kernel setupMaps
+#pragma kernel setupTangents
+
+//constants
+static const float MaxFloat = 3.402823e38f;
+static const int3 NEXT = int3(1, 2, 0);
+static const int3 LAST = int3(2, 0, 1);
+static const float PI = 3.14159265358979323846f;
+static const float PI_INV = 1.0f / PI;
+static const float TWO_PI_INV = 1.0f / (2 * PI);
+
+//methodes
+bool isCW (float2 a, float2 b) {
+	return a.x*b.y - a.y*b.x > 0;
+}
+
+//structs
+struct UVData {
+	float2 uv[4];
+};
+
+struct UVTmpData {
+	float2 uv0, uv1, uv2, ab, bc, ca;	//6 * 4 bytes
+	float sqrInvAB, sqrInvBC, sqrInvCA;	//3 * 4 bytes
+	bool isCW;							//1 * 4 bytes
+};
+
+struct TriangleData {
+	float4 vert0, vert1, vert2;
+};
+
+struct TriangleCompressed {
+	uint v0xy;   //xy of first vertex
+	uint v1xy;   //xy of second vertex
+	uint v2xy;   //xy of third vertex
+	uint v01z;   //z of first&second vertex
+	uint v2zN;   //z of third vertex & normal direction of triangle
+	uint uv0;    //xy of first uv
+	uint uv1;    //xy of second uv
+	uint uv2;    //xy of third uv
+};
+
+
+//Buffers
+StructuredBuffer<UVData> trianglesUV;
+StructuredBuffer<TriangleData> trianglesVert;
+StructuredBuffer<int4> trianglesNeighbours;
+StructuredBuffer<float4> bounds;
+RWStructuredBuffer<float4> tangents;
+RWStructuredBuffer<TriangleCompressed> triDataCompressed;
+
+RWStructuredBuffer<uint2> outputBuffer;
+
+//Values
+float TexturesizeInverse;
+uint TEXSIZE;
+uint TRISCOUNT_UNPADDED;
+
+int2 startOffset;
+groupshared UVTmpData uv[64];
+[numthreads (8, 8, 1)]
+void setupMaps (uint3 id : SV_DispatchThreadID, uint index : SV_GroupIndex) {
+	float2 pos = (float2(0.5f, 0.5f) + id.xy + startOffset) * TexturesizeInverse; //uv position of the texel
+	int myID = 0;
+	float closest = MaxFloat;
+	float2 closestPoint;
+
+	uint i = 0;
+	uint n = 0;
+	while (i < TRISCOUNT_UNPADDED) {	//find closest point inside a triangle 
+
+		//compute groupshared data to speed up calculations
+		if (n == 64 || n == 0) {
+			n = 0;
+			UVData uvs = trianglesUV[i + index];
+			UVTmpData tmp;
+			tmp.uv0 = uvs.uv[0];
+			tmp.uv1 = uvs.uv[1];
+			tmp.uv2 = uvs.uv[2];
+			float2 ab = uvs.uv[1] - uvs.uv[0];
+			float2 bc = uvs.uv[2] - uvs.uv[1];
+			float2 ca = uvs.uv[0] - uvs.uv[2];
+			tmp.ab = ab;
+			tmp.bc = bc;
+			tmp.ca = ca;
+			tmp.sqrInvAB = 1.0f / dot (ab, ab);
+			tmp.sqrInvBC = 1.0f / dot (bc, bc);
+			tmp.sqrInvCA = 1.0f / dot (ca, ca);
+			tmp.isCW = isCW (ab, uvs.uv[2] - uvs.uv[0]);
+			uv[index] = tmp;
+		}
+
+		GroupMemoryBarrierWithGroupSync ();
+
+		UVTmpData tri = uv[n];
+
+		GroupMemoryBarrierWithGroupSync ();
+
+		//find closest point in triangle 'tri' to 'pos'
+
+		bool outA = isCW (pos - tri.uv0, tri.ab) == tri.isCW;
+		bool outB = isCW (pos - tri.uv1, tri.bc) == tri.isCW;
+		bool outC = isCW (pos - tri.uv2, tri.ca) == tri.isCW;
+
+		float kA = dot (pos - tri.uv0, tri.ab) * tri.sqrInvAB;
+		float kB = dot (pos - tri.uv1, tri.bc) * tri.sqrInvBC;
+		float kC = dot (pos - tri.uv2, tri.ca) * tri.sqrInvCA;
+
+		//closest point in triangle on an edge?
+		float2 closestInside = outA && kA >= 0 && kA <= 1 ? tri.uv0 + tri.ab * kA : pos;
+		closestInside = outB && kB >= 0 && kB <= 1 ? tri.uv1 + tri.bc * kB : closestInside;
+		closestInside = outC && kC >= 0 && kC <= 1 ? tri.uv2 + tri.ca * kC : closestInside;
+
+		//closest point in triangle on a corner?
+		closestInside = kA > 1 && kB < 0 ? tri.uv1 : closestInside;
+		closestInside = kB > 1 && kC < 0 ? tri.uv2 : closestInside;
+		closestInside = kC > 1 && kA < 0 ? tri.uv0 : closestInside;
+
+		float2 delta = closestInside - pos;
+		float distToTriangle = dot (delta, delta);
+
+		myID = distToTriangle < closest ? i : myID;
+		closestPoint = distToTriangle < closest ? closestInside : closestPoint;
+		closest = min (distToTriangle, closest);
+
+		i++;
+		n++;
+	}
+
+	UVData uvs = trianglesUV[myID];
+	int3 neighbours = (int3)trianglesNeighbours[myID];
+
+	//barycentric space
+	float2 v0 = uvs.uv[1] - uvs.uv[0];
+	float2 v1 = uvs.uv[2] - uvs.uv[0];
+	float2 v2 = closestPoint - uvs.uv[0];
+
+	float invDenom = 1.0f / (v0.x * v1.y - v1.x * v0.y);
+	float v = (v2.x * v1.y - v1.x * v2.y) * invDenom;
+	float w = (v0.x * v2.y - v2.x * v0.y) * invDenom;
+	float2 bary = float2(clamp(v, 0, 1), clamp(w, 0, 1));
+	
+	v2 = pos - uvs.uv[0];
+	v = 1.0f - (v2.x * v1.y - v1.x * v2.y) * invDenom;
+	w = 1.0f - (v0.x * v2.y - v2.x * v0.y) * invDenom;
+	float u = 2.0f - v - w;
+	int neighbourID = (closest <= TexturesizeInverse * TexturesizeInverse) ? -1 : (u > v&&u > w) + (v > u&&v > w) * 2;
+
+	float2 uvSample = pos;
+	if (neighbourID != -1) {
+		int neighbourTris = trianglesNeighbours[myID][neighbourID];
+
+		if (neighbourTris != -1) {
+			myID = (uint)neighbourTris / 3;
+			UVData neighbourUVs = trianglesUV[myID];
+			int side = (uint)neighbourTris % 3;
+			float2 uv0 = neighbourUVs.uv[side];
+			float2 uv1 = neighbourUVs.uv[LAST[side]];
+
+			float2 a1 = uvs.uv[neighbourID];
+			float2 a2 = uvs.uv[NEXT[neighbourID]];
+			float2 b1 = uvs.uv[LAST[neighbourID]];
+			float2 b2 = pos;
+			float t = ((a1.x - b1.x)*(b1.y - b2.y) - (a1.y - b1.y)*(b1.x - b2.x)) / ((a1.x - a2.x)*(b1.y - b2.y) - (a1.y - a2.y)*(b1.x - b2.x));
+
+			//position on neighbour uv edge
+			uvSample = uv0 + (uv1 - uv0)*clamp (t, 0, 1);
+
+			//calc new bary
+			float2 v0 = neighbourUVs.uv[1] - neighbourUVs.uv[0];
+			float2 v1 = neighbourUVs.uv[2] - neighbourUVs.uv[0];
+			float2 v2 = uvSample - neighbourUVs.uv[0];
+
+			invDenom = 1.0f / (v0.x * v1.y - v1.x * v0.y);
+			v = (v2.x * v1.y - v1.x * v2.y) * invDenom;
+			w = (v0.x * v2.y - v2.x * v0.y) * invDenom;
+			bary = float2(clamp (v, 0, 1), clamp (w, 0, 1));
+		}
+	}
+
+	myID = (myID << 1) | (uint)(neighbourID != -1);
+	uint baryCompressed = ((uint)(bary.x * 0xFFFF) << 16) | (uint)(bary.y * 0xFFFF);
+
+	uint outID = id.x + startOffset.x + (id.y + startOffset.y) * TEXSIZE;
+	outputBuffer[outID] = uint2(baryCompressed, myID);
+
+}
+
+float2 convertToPolar (float3 dir) {
+	return float2(acos (dir.z), atan2 (dir.y, dir.x));
+}
+
+//calculate tangent and binormal for each triangle (aligned with uv space), to project gravity in uv space later 
+[numthreads (64, 1, 1)]
+void setupTangents (uint3 id : SV_DispatchThreadID) {
+	if (id.x >= TRISCOUNT_UNPADDED) return;
+
+	UVData uvs = trianglesUV[id.x];
+	TriangleData verts = trianglesVert[id.x];
+
+	float3 edgeA = (float3)verts.vert1 - (float3)verts.vert0;
+	float3 edgeB = (float3)verts.vert2 - (float3)verts.vert0;
+
+	float2 uvA = uvs.uv[1] - uvs.uv[0];
+	float2 uvB = uvs.uv[2] - uvs.uv[0];
+
+	float t = 1.0f / (uvA.x * uvB.y - uvA.y * uvB.x);
+
+	float2 tan = convertToPolar (normalize ((edgeA * uvB.y - edgeB * uvA.y) * t));
+	float2 binorm = convertToPolar (normalize ((edgeB * uvA.x - edgeA * uvB.x) * t));
+	tangents[id.x] = float4(tan, binorm);	//calculate tangets data
+
+	//compress triangle data
+	float3 min = (float3)bounds[1];
+	float3 sizeInv = (float3)bounds[0];
+
+	TriangleCompressed tri;
+	tri.v0xy = (uint)(clamp ((verts.vert0.x - min.x) * sizeInv.x, 0, 1) * 0xFFFF) << 16;	//vert0.x
+	tri.v0xy |= (uint)(clamp ((verts.vert0.y - min.y) * sizeInv.y, 0, 1) * 0xFFFF);			//vert0.y
+	tri.v1xy = (uint)(clamp ((verts.vert1.x - min.x) * sizeInv.x, 0, 1) * 0xFFFF) << 16;	//vert1.x
+	tri.v1xy |= (uint)(clamp ((verts.vert1.y - min.y) * sizeInv.y, 0, 1) * 0xFFFF);			//vert1.y
+	tri.v2xy = (uint)(clamp ((verts.vert2.x - min.x) * sizeInv.x, 0, 1) * 0xFFFF) << 16;	//vert2.x
+	tri.v2xy |= (uint)(clamp ((verts.vert2.y - min.y) * sizeInv.y, 0, 1) * 0xFFFF);			//vert2.y
+	tri.v01z = (uint)(clamp ((verts.vert0.z - min.z) * sizeInv.z, 0, 1) * 0xFFFF) << 16;	//vert0.z
+	tri.v01z |= (uint)(clamp ((verts.vert1.z - min.z) * sizeInv.z, 0, 1) * 0xFFFF);			//vert1.z
+	tri.v2zN = (uint)(clamp ((verts.vert2.z - min.z) * sizeInv.z, 0, 1) * 0xFFFF);			//vert2.z
+	tri.uv0 = ((uint)(uvs.uv[0].x * 0xFFFF) << 16) | (uint)(uvs.uv[0].y * 0xFFFF);			//uv0
+	tri.uv1 = ((uint)(uvs.uv[1].x * 0xFFFF) << 16) | (uint)(uvs.uv[1].y * 0xFFFF);			//uv1
+	tri.uv2 = ((uint)(uvs.uv[2].x * 0xFFFF) << 16) | (uint)(uvs.uv[2].y * 0xFFFF);			//uv2
+
+	float3 normal = normalize (cross (edgeA, edgeB));	//convert normal in polar coordinates
+	float theta = clamp (acos (normal.z) * PI_INV, 0, 1);
+	float phi = clamp ((atan2 (normal.y, normal.x) + PI) * TWO_PI_INV, 0, 1);
+	uint polar = (((uint)(theta * 0xFF) & 0xFF) << 8) | ((uint)(phi * 0xFF) & 0xFF);
+	tri.v2zN |= polar << 16;																	//normal in polar coordinates compressed
+
+	triDataCompressed[id.x] = tri;
+}
+
+
+
