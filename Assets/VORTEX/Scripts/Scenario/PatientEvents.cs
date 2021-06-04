@@ -32,7 +32,7 @@ public class PatientEvents : MonoBehaviour
 
     public event Action PatientPneumothorax;
     public event Action NeedleDecompression;
-
+    public event Action NeedleInserted;
 
     public void TriggerPatientPneumothorax()
     {
@@ -50,35 +50,43 @@ public class PatientEvents : MonoBehaviour
         }
     }
 
-  // public void AdministerMedication(string medicationName)
-  // {
-  //     switch (medicationName)
-  //     {
-  //         case "Epinephrine":
-  //             {
-  //                 actionManager.drug = Pulse.CDM.Drug.StartEpinephrineInfusion;
-  //                 break;
-  //             }
-  //         case "Succinylcholine":
-  //             {
-  //                 actionManager.drug = Pulse.CDM.Drug.StartSuccinylcholineInfusion;
-  //                 break;
-  //             }
-  //         case "Propofol":
-  //             {
-  //                 actionManager.drug = Pulse.CDM.Drug.StartPropofolInfusion;
-  //                 break;
-  //             }
-  //         case "Rocuronium":
-  //             {
-  //                 actionManager.drug = Pulse.CDM.Drug.StartRocuroniumInfusion;
-  //                 break;
-  //             }
-  //         default:
-  //             {
-  //                 break;
-  //             }
-  //     }
-  // }
+    public void TriggerNeedleInserted()
+    {
+        if (NeedleInserted != null)
+        {
+            NeedleInserted();
+        }
+    }
+
+    // public void AdministerMedication(string medicationName)
+    // {
+    //     switch (medicationName)
+    //     {
+    //         case "Epinephrine":
+    //             {
+    //                 actionManager.drug = Pulse.CDM.Drug.StartEpinephrineInfusion;
+    //                 break;
+    //             }
+    //         case "Succinylcholine":
+    //             {
+    //                 actionManager.drug = Pulse.CDM.Drug.StartSuccinylcholineInfusion;
+    //                 break;
+    //             }
+    //         case "Propofol":
+    //             {
+    //                 actionManager.drug = Pulse.CDM.Drug.StartPropofolInfusion;
+    //                 break;
+    //             }
+    //         case "Rocuronium":
+    //             {
+    //                 actionManager.drug = Pulse.CDM.Drug.StartRocuroniumInfusion;
+    //                 break;
+    //             }
+    //         default:
+    //             {
+    //                 break;
+    //             }
+    //     }
+    // }
 
 }
