@@ -34,10 +34,10 @@ TagManager:
   - Hand
   - Blocking
   - 
-  - 
-  - 
-  - 
-  - 
+  - NeedleBoundary
+  - Skin
+  - Tool
+  - InternalTool
   - 
   - 
   - 
