@@ -107,6 +107,7 @@ namespace CEMSIM
                         {
                             // disconnect
                             ServerInstance.clients[id].Disconnect();
+                            ServerInstance.dissonanceCommsNetwork.GetDissonanceServer().ReachClientDisconnected(ServerInstance.clients[id]);
                             return;
                         }
 

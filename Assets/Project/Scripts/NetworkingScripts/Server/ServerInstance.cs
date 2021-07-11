@@ -15,6 +15,7 @@ namespace CEMSIM
             public static int port { get; private set; }
             private static TcpListener tcpListener;
             private static UdpClient udpListener;
+            public static DissonanceCommsNetwork dissonanceCommsNetwork;
 
             public static Dictionary<int, ServerClient> clients = new Dictionary<int, ServerClient>(); ///> a dictionary storing clients and their ids.
 
@@ -44,9 +45,12 @@ namespace CEMSIM
                 udpListener = new UdpClient(port);
                 udpListener.BeginReceive(UDPReceiveCallback, null);
 
+                // start dissonance server
+                dissonanceCommsNetwork = new DissonanceCommsNetwork();
+                dissonanceCommsNetwork.DissonanceRunAsDedicatedServer();
+
                 Debug.Log($"Server is listening on port {_port}");
                 NetworkOverlayMenu.Instance.Log($"Server is listening on port {_port}");
-
             }
 
             /// <summary>
@@ -190,6 +194,7 @@ namespace CEMSIM
             {
                 tcpListener.Stop();
                 udpListener.Close();
+                dissonanceCommsNetwork.DissonanceStop();
             }
 
         }

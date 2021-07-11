@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Dissonance.Networking;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Net;
@@ -15,6 +16,8 @@ namespace CEMSIM
         {
             public static ClientInstance instance;
             public static int dataBufferSize = 4096;
+
+            private DissonanceCommsNetwork dissonanceCommsNetwork;
 
             // server ip and port
             public string ip = ClientNetworkConstants.SERVER_IP;
@@ -67,7 +70,11 @@ namespace CEMSIM
                 tcp = new TCP();
                 udp = new UDP();
 
-                if(GameManager.instance.localPlayerVR.activeInHierarchy)
+                // start dissonance server
+                dissonanceCommsNetwork = new DissonanceCommsNetwork();
+                dissonanceCommsNetwork.DissonanceRunAsClient();
+
+                if (GameManager.instance.localPlayerVR.activeInHierarchy)
                 {
                     //To do: Handle this in XR & Menu Manager Instances
                     // disable the manu and request to enter the OR
@@ -494,6 +501,8 @@ namespace CEMSIM
                     tcp.socket.Close();
                     if (udp.socket != null)
                         udp.socket.Close();
+
+                    dissonanceCommsNetwork.DissonanceStop();
 
                     Debug.Log("Disconnect from server.");
                 }
