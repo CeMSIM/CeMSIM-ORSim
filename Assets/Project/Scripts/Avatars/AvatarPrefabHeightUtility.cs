@@ -6,14 +6,15 @@ using UnityEditor;
 // Finds the height of the avatar's prefab for height calibration
 public class AvatarPrefabHeightUtility : MonoBehaviour
 {
-    public Transform avatarRoot;
-    public Transform avatarHead;
+    [Tooltip("The highest level gameobject in the hierarchy that determines the floor level.")]
+    public Transform avatarFloor;
+    public Transform avatarEyes;
 
     public float height;
 
     public float CalculateHeight()
     {
-        height = avatarHead.position.y - avatarRoot.position.y;
+        height = avatarEyes.position.y - avatarFloor.position.y;
         return height;
     }
 }
@@ -25,9 +26,9 @@ public class AvatarPrefabHeightUtilityEditor : Editor
     {
         base.OnInspectorGUI();
 
-        AvatarPrefabHeightUtility heightUtility = (target as AvatarPrefabHeightUtility);
+        AvatarPrefabHeightUtility heightUtility = target as AvatarPrefabHeightUtility;
 
-        if (heightUtility.avatarRoot && heightUtility.avatarHead && GUILayout.Button("Calculate Height"))
+        if (!Application.isPlaying && heightUtility.avatarFloor && heightUtility.avatarEyes && GUILayout.Button("Calculate Height"))
         {
             Undo.RecordObject(heightUtility, "Changed avatar height");
             heightUtility.CalculateHeight();

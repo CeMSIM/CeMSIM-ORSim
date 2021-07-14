@@ -631,6 +631,13 @@ namespace HurricaneVR.Framework.Core.Grabbers
 
             _grabIndicator.transform.position = position;
         }
+
+        protected override void OnDestroy()
+        {
+            base.OnDestroy();
+            Destroy(_forceAnchor);
+        }
+
     }
 
     public enum HVRForceGrabMode

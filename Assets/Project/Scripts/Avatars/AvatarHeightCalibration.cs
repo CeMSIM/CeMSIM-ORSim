@@ -2,44 +2,59 @@
 using System.Collections.Generic;
 using UnityEngine;
 using RootMotion.FinalIK;
-using UnityEditor;
+using UnityEngine.Events;
 
 // Sets the scale of the avatar based on the standing height of the user
 [RequireComponent(typeof(AvatarPrefabHeightUtility))]
 public class AvatarHeightCalibration : MonoBehaviour
 {
     public VRIK ik;
-    private AvatarPrefabHeightUtility heightUtility;
+    public AvatarPrefabHeightUtility avatarHeightUtility;
+
+    [Tooltip("A multiplier to the scale of the avatar. Used if the avatar is too short or tall after calibration.")]
+    [Range(0.8f, 1.2f)] public float heightAdjustmentMultiplier = 1f;
+
+    [HideInInspector] public UserHeightUtility userHeightUtility;
+    private float calibrationScaleMultiplier = 1;
     private Vector3 startingScale;
+    private float startingFootDistance;
+    private float startingStepThreshold;
+
+    public UnityEvent<float> OnAvatarHeightChanged; // Sends new avatar scale, foot distance, and step threshold 
+                                                    // as a single multiplier when calibrated. Made to send client data to server
 
     void Start()
     {
-        heightUtility = GetComponent<AvatarPrefabHeightUtility>();
-        startingScale = ik.references.root.localScale;
+        if(!avatarHeightUtility)
+            avatarHeightUtility = GetComponentInChildren<AvatarPrefabHeightUtility>();
+
+        // Store the initial data for later use
+        startingScale = transform.localScale;
+        startingFootDistance = ik.solver.locomotion.footDistance;
+        startingStepThreshold = ik.solver.locomotion.stepThreshold;
+
+        Calibrate();
     }
 
-    // Must be called at runtime since the user has to be standing to get an accurate height
     public void Calibrate()
     {
-        // Get the current height of the head target and resize the avatar
-        // New scale is based on the height difference between the current scale and the calibrated scale
-        float newHeightScale = (ik.solver.spine.headTarget.position.y - ik.references.root.position.y) / 
-                               (heightUtility.height * (ik.references.root.localScale.y / startingScale.y));
+        // New scale is based on the height difference between the user height and avatar height
+        float newScale = userHeightUtility.height / avatarHeightUtility.height;
 
-        ik.references.root.localScale *= newHeightScale;
-        ik.solver.locomotion.footDistance *= newHeightScale;
-        ik.solver.locomotion.stepThreshold *= newHeightScale;
+        calibrationScaleMultiplier = newScale;
+        Calibrate(calibrationScaleMultiplier);
+
+        OnAvatarHeightChanged.Invoke(calibrationScaleMultiplier);
     }
-}
 
-[CustomEditor(typeof(AvatarHeightCalibration))]
-public class AvatarHeightCalibrationEditor : Editor
-{
-    public override void OnInspectorGUI()
+    // Use a given height scale to resize the avatar, used for resizing avatar on server/non-local client
+    public void Calibrate(float scaleMultiplier)
     {
-        base.OnInspectorGUI();
+        calibrationScaleMultiplier = scaleMultiplier;
+        float totalMultiplier = calibrationScaleMultiplier * heightAdjustmentMultiplier;
 
-        if (Application.isPlaying && GUILayout.Button("Calibrate"))
-            (target as AvatarHeightCalibration).Calibrate();
+        transform.localScale = startingScale * totalMultiplier;
+        ik.solver.locomotion.footDistance = startingFootDistance * totalMultiplier;
+        ik.solver.locomotion.stepThreshold = startingStepThreshold * totalMultiplier;
     }
 }

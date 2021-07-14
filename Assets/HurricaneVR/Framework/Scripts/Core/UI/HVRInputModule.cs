@@ -43,12 +43,28 @@ namespace HurricaneVR.Framework.Core.UI
             }
         }
 
+        public void RemovePointer(HVRUIPointer pointer)
+        {
+            if(Pointers == null)
+                return;
+
+            if (Pointers.Contains(pointer))
+            {
+                HandlePointerExitAndEnter(pointer.PointerEventData, null);
+                RemovePointerData(pointer.PointerEventData);
+                Pointers.Remove(pointer);
+
+                if (Pointers.Count == 0)
+                    Pointers = null;
+            }
+        }
+
         public override void Process()
         {
             for (var j = 0; j < Pointers.Count; j++)
             {
                 var pointer = Pointers[j];
-                if (!pointer || !pointer.isActiveAndEnabled)
+                if (!pointer || pointer.Camera == null || !pointer.isActiveAndEnabled)
                     continue;
 
                 pointer.CurrentUIElement = null;
@@ -67,8 +83,10 @@ namespace HurricaneVR.Framework.Core.UI
 
                 m_RaycastResultCache.Clear();
                 pointer.CurrentUIElement = pointer.PointerEventData.pointerCurrentRaycast.gameObject;
-                if (!pointer.PointerEventData.pointerCurrentRaycast.isValid)
-                    continue;
+
+                // Removed continue because it causes lingering hover after pointer moves off of raycast-able objects
+                //if (!pointer.PointerEventData.pointerCurrentRaycast.isValid)
+                //    continue;
 
                 var screenPosition = (Vector2)pointer.Camera.WorldToScreenPoint(pointer.PointerEventData.pointerCurrentRaycast.worldPosition);
                 var delta = screenPosition - pointer.PointerEventData.position;
@@ -77,13 +95,13 @@ namespace HurricaneVR.Framework.Core.UI
 
                 var buttonState = HVRController.GetButtonState(pointer.HandSide, PressButton);
 
-                HandlePointerExitAndEnter(pointer.PointerEventData, pointer.CurrentUIElement);
+                ProcessMove(pointer.PointerEventData);
 
-                if (buttonState.JustActivated)
+                if (buttonState.JustActivated && pointer.PointerEventData.pointerCurrentRaycast.isValid)
                 {
                     ProcessPress(pointer);
                 }
-                else if (buttonState.Active)
+                else if (buttonState.Active && pointer.PointerEventData.pointerCurrentRaycast.isValid)
                 {
                     ProcessDrag(pointer.PointerEventData);
                 }
@@ -91,10 +109,6 @@ namespace HurricaneVR.Framework.Core.UI
                 {
                     ProcessRelease(pointer);
                 }
-
-                ProcessMove(pointer.PointerEventData);
-
-
             }
 
             for (var i = 0; i < UICanvases.Count; i++)

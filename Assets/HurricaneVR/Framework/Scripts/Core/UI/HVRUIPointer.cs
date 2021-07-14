@@ -43,5 +43,11 @@ namespace HurricaneVR.Framework.Core.UI
             PointerEventData.position = new Vector2(Camera.pixelWidth / 2, Camera.pixelHeight / 2);
 
         }
+
+        // Manually remove this pointer from the input module
+        public void Remove()
+        {
+            InputModule?.RemovePointer(this);
+        }
     }
 }
